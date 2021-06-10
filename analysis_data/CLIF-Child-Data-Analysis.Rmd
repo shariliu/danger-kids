@@ -1,0 +1,1121 @@
+---
+title: "CLIF Child Data Analysis"
+author: "Nensi Gjata and Shari Liu"
+date: "2/7/2021"
+output:
+  html_document: default
+  pdf_document: default
+editor_options:
+  chunk_output_type: console
+---
+
+# Load, Import, and Organize Data
+
+```{r load, message=FALSE}
+library(tidyverse)
+library(dplyr)
+library(lme4)
+library(lmerTest)
+library(ggplot2)
+library(cowplot)
+library(eeptools)
+library(lubridate)
+library(boot)
+library(simr)
+library(MuMIn)
+library(gmodels)
+
+knitr::opts_chunk$set(warning = FALSE, message = FALSE) 
+
+setwd("~/Desktop/Nensi/Thesis/Analysis Datasets")
+```
+
+```{r cleanup, echo=FALSE}
+# raw_data <- read.csv(file="Raw_Child_Dataset.csv")
+
+# clean <- raw_data %>% 
+#   slice(-1:-2)  %>% # delete first and second rows with question information
+#   mutate(Duration = as.numeric(as.character(Duration..in.seconds.))) %>%   
+#   mutate(ID = row_number(), DOB = mdy(DOB), DOT=mdy(StartDate), age_months = age_calc(DOB, enddate = DOT, units = "months", precise = TRUE), age_years = floor(age_months/12)) %>% # deidentify participants, calculate age from DOB in months and years
+#   select(ID, everything()) %>% 
+  
+# write.csv(clean, "CLIF-Child-Dataset.csv") # export deidentified dataset
+```
+
+```{r import.data}
+# import deidentified dataset
+data <- read.csv(file="CLIF-Child-Dataset.csv") %>% 
+  mutate(ID=as.factor(ID))
+```
+
+
+
+
+
+
+
+
+
+# Task 1
+
+## Task 1: Tidy Data
+```{r exp1, echo=FALSE}
+# gather DVs separately
+exp1_jump <- data %>%
+  select(ID, Version, contains("Jump")) %>%  # select Task 1 trials, ID, and Version
+  gather(orig, DV_Subj_Jump, contains("Jump")) %>% # split trials into rows
+  separate(orig, c("IV_Objective","Exp"), sep = "([\\_\\.])", extra = "drop") %>% # separate original name
+  mutate(DV_Subj_Jump = ifelse(Version %in% "A", 100 - as.numeric(DV_Subj_Jump),  as.numeric(DV_Subj_Jump)), IV_Objective = as.numeric(sub("X","", IV_Objective))) %>%  # find depth and adjust responses for counterbalancing across Versions
+  arrange(ID) # arrange by ID number
+  
+exp1_fall <- data %>%
+  select(ID, Version, contains("Fall")) %>%
+  gather(orig2, DV_Subj_Fall, contains("Fall")) %>% 
+  separate(orig2, c("IV_Objective","Exp"), sep = "([\\_\\.])", extra = "drop") %>% 
+  mutate(DV_Subj_Fall = ifelse(Version %in% "A", 100 - as.numeric(DV_Subj_Fall), as.numeric(DV_Subj_Fall)), IV_Objective = as.numeric(sub("X","", IV_Objective))) %>% 
+  arrange(ID) # arrange by ID number
+
+# find baseline values for jump
+baseline_jump <- exp1_jump %>%
+  select(ID, IV_Objective, DV_Subj_Jump) %>%
+  filter(IV_Objective == "4") %>% # filter by responses to medium cliff (baseline measure)
+  mutate(count = 7) %>% # produce baseline depth for all responses in A and B (even NAs)
+  uncount(count) %>%
+  rename(DV_Subj_Jump_Baseline = DV_Subj_Jump) %>% 
+  select(DV_Subj_Jump_Baseline)
+
+# find baseline values for fall
+baseline_fall <- exp1_fall %>%
+  select(ID, IV_Objective, DV_Subj_Fall) %>% 
+  filter(IV_Objective == "4") %>% 
+  mutate(count = 7) %>%
+  uncount(count) %>% 
+  rename(DV_Subj_Fall_Baseline = DV_Subj_Fall) %>% 
+  select(DV_Subj_Fall_Baseline)
+
+# compile final jump data
+exp1_jump <- cbind(exp1_jump, baseline_jump) %>% 
+  mutate(DV_Subj_Jump_Diff = DV_Subj_Jump - DV_Subj_Jump_Baseline) 
+
+# compile final fall data
+exp1_fall <- cbind(exp1_fall, baseline_fall) %>% 
+  mutate(DV_Subj_Fall_Diff = DV_Subj_Fall - DV_Subj_Fall_Baseline) 
+
+# compile combined dataset (including incomplete trials)
+exp1_full <- merge(exp1_fall, exp1_jump) 
+```
+
+## Task 1: Plots
+```{r exp1.plot.jump, echo=FALSE, eval=FALSE}
+# produce Task 1 jump plot
+(exp1.jump.plot.child <- exp1_jump %>% 
+  ggplot(aes(x = IV_Objective, y = DV_Subj_Jump)) +
+  scale_x_continuous(breaks=seq(1,7,1)) +
+  geom_line(aes(group=ID), color=rgb(0,0,0), alpha=0.1, size=.8) +
+  geom_boxplot(aes(group=IV_Objective), color="#333333", width=.5, fill=NA, size=1) +
+  geom_point(color="#5F8DAE", size=3) +
+  stat_summary(fun.data = "mean_cl_boot", geom="errorbar", color="#003e67", width=0.15, size=1.5) +
+  stat_summary(fun="mean", geom="point", shape=23, size=6, fill="white", color="#003e67", stroke=3) +
+  theme_bw() +
+  theme(axis.text=element_text(size=35)) +
+  ylim(0, 100) +
+  labs(x = "", y = ""))
+
+ggsave(filename="task1.jump.child.plot.png", path="/Users/Nensi/Desktop", width = 40, height = 12, units = "cm", dpi=300)
+```
+
+```{r exp1.plot.fall, echo=FALSE, eval=FALSE}
+# produce Task 1 fall plot
+(exp1.fall.plot.child <- exp1_fall %>%
+  ggplot(aes(x = IV_Objective, y = DV_Subj_Fall)) +
+  scale_x_continuous(breaks=seq(1,7,1)) +
+  geom_line(aes(group=ID), color=rgb(0,0,0), alpha=0.1, size=.8) +
+  geom_boxplot(aes(group=IV_Objective), color="#333333", width=.5, fill=NA, size=1) +
+  geom_point(color="#5F8DAE", size=3) +
+  stat_summary(fun.data="mean_cl_boot", geom="errorbar", color="#003e67", width=0.15, size=1.5) +
+  stat_summary(fun="mean", geom="point", shape=23, size=6, fill="white", color="#003e67", stroke=3) +
+  theme_bw() +
+  theme(axis.text=element_text(size=35)) +
+  ylim(0, 100) +
+  labs(x = "", y = ""))
+
+ggsave(filename="task1.fall.child.plot.png", path="/Users/Nensi/Desktop", width = 40, height = 12, units = "cm", dpi=300)
+```
+
+```{r exp1.plot.jump.indv, echo=FALSE, eval=FALSE}
+# produce Task 1 jump plot (individual graph per participant)
+(exp1.jump.plot.indv.child <- exp1_jump %>% 
+  ggplot(aes(x = IV_Objective, y = DV_Subj_Jump)) +
+  scale_x_continuous(breaks=seq(1,7,1)) +
+  facet_wrap(vars(ID), ncol = 6) +
+  geom_line(aes(group=ID), color=rgb(0,0,0), alpha=0.2, size=1.5) +
+  geom_point(color="#5F8DAE", size=3) +
+  theme_bw() +
+  theme(axis.text=element_text(size=13)) +
+  ylim(0, 100) +
+  labs(x = "", y = ""))
+
+ggsave(filename="task1.jump.child.indv.png", path="/Users/Nensi/Desktop", width = 36, height = 30, units = "cm", dpi=300)
+```
+
+```{r exp1.plot.fall.indv, echo=FALSE, eval=FALSE}
+# produce Task 1 fall plot (individual graph per participant)
+(exp1.fall.plot.indv.child <- exp1_fall %>% 
+  ggplot(aes(x = IV_Objective, y = DV_Subj_Fall)) +
+  scale_x_continuous(breaks=seq(1,7,1)) +
+  facet_wrap(vars(ID), ncol = 6) +
+  geom_line(aes(group=ID), color=rgb(0,0,0), alpha=0.2, size=1.5) +
+  geom_point(color="#5F8DAE", size=3) +
+  theme_bw() +
+  theme(axis.text=element_text(size=13)) +
+  ylim(0, 100) +
+  labs(x = "", y = ""))
+
+ggsave(filename="task1.fall.child.indv.png", path="/Users/Nensi/Desktop", width = 36, height = 30, units = "cm", dpi=300)
+```
+
+## Task 1: Main Analyses
+### Main Analysis (Jump)
+```{r exp1.jump.analysis}
+# null model jump (converges, no error message)
+null1.jump.child <- lmer(data = exp1_jump, formula = DV_Subj_Jump ~ 1 + (1+IV_Objective|ID))
+
+# hypothesis-driven model jump (converges, no error message)
+model1.jump.child <- lmer(data = exp1_jump, formula = DV_Subj_Jump ~ IV_Objective + (1+IV_Objective|ID))
+
+# standardized model jump (converges, no error message)
+model1.jump.standard.child <- lmer(data = exp1_jump, formula = scale(DV_Subj_Jump) ~ scale(IV_Objective) + (1+scale(IV_Objective)|ID))
+
+# task 1 jump summaries
+confint(model1.jump.child)
+summary(model1.jump.child)
+summary(model1.jump.standard.child)
+
+# likelihood ratio test for comparing models (jump)
+anova(null1.jump.child, model1.jump.child)
+
+# r-squared For generalized mixed-effect models
+r.squaredGLMM(null1.jump.child)
+r.squaredGLMM(model1.jump.child) # adding predictors adds 27.76% variance explained 
+```
+
+### Main Analysis (Fall)
+```{r exp1.fall.analysis}
+# null model fall (converges, no error message)
+null.fall.child <- lmer(data = exp1_fall, formula = DV_Subj_Fall ~ 1 + (1+IV_Objective|ID))
+
+# hypothesis-driven model, (converges, singular error message)
+model1.fall.child <- lmer(data = exp1_fall, formula = DV_Subj_Fall ~ IV_Objective + (1+IV_Objective|ID))
+
+# standardized model fall (converges, singular error message)
+model1.fall.standard.child <- lmer(data = exp1_fall, formula = scale(DV_Subj_Fall) ~ scale(IV_Objective) + (1+scale(IV_Objective)|ID))
+
+# task 1 fall summaries
+confint(model1.fall.child)
+summary(model1.fall.child)
+summary(model1.fall.standard.child)
+
+# likelihood ratio test for comparing models (fall)
+anova(null.fall.child, model1.fall.child)
+
+# r-squared For generalized mixed-effect models
+r.squaredGLMM(null.fall.child)
+r.squaredGLMM(model1.fall.child) # adding predictors adds 30.68% variance explained 
+```
+
+## Task 1: Power Analyses
+```{r exp1.jump.power.analysis, echo=FALSE, eval=FALSE}
+sim1.jump.child <- powerCurve(extend(model1.jump.child, along="ID", n=500),along="ID", breaks = c(2, 4, 6, 8), alpha = .05, seed = 123)
+plot(sim1.jump.child)
+print(sim1.jump.child)
+```
+
+```{r exp1.fall.power.analysis, echo=FALSE, eval=FALSE}
+sim1.fall.child <- powerCurve(extend(model1.fall.child, along="ID", n=500), along="ID", breaks = c(2, 4, 6, 8), alpha = .05, seed = 123)
+plot(sim1.fall.child)
+print(sim1.fall.child)
+```
+
+## Task 1: Exploratory Analyses
+
+### T1: Non-linear Bootstrap Analysis (Jump) 
+```{r exp1.jump.analysis.bootstrap, cache=TRUE}
+set.seed(123)
+
+# compile original data for sampling
+data1.jump <- data %>%
+  select(ID, Version, contains("Jump"))
+
+# prepare sampled data
+cleaning1.jump <- function(new_data) {
+  final.jump <- new_data %>%
+  gather(orig2, DV_Subj_Jump, contains("Jump")) %>% 
+  separate(orig2, c("IV_Objective","Exp"), sep = "([\\_\\.])", extra = "drop") %>% 
+  mutate(DV_Subj_Jump = ifelse(Version %in% "A", 100 - as.numeric(DV_Subj_Jump), as.numeric(DV_Subj_Jump)), IV_Objective = as.numeric(sub("X","", IV_Objective))) %>% 
+  arrange(ID) 
+  
+  return(final.jump)
+}
+
+# retrieve AIC difference between linear and non-linear models
+myAIC <- function(original, sample) {
+  new_data <- original[sample, ]
+  boot_data <- cleaning1.jump(new_data)
+  
+  boot.model1.jump.child <- lmer(data = boot_data, formula = DV_Subj_Jump ~ IV_Objective + (1|ID))
+  AIC1 <- AIC(boot.model1.jump.child)
+  
+  boot.model1.expo.decay.jump.child <- lmer(data = boot_data, formula = DV_Subj_Jump ~ I(exp(-IV_Objective)) + (1|ID))
+  AIC2 <- AIC(boot.model1.expo.decay.jump.child)
+  
+  return(AIC2-AIC1)               
+} 
+
+# bootstrap AIC function
+boot.AIC.jump.child <- boot(data1.jump, statistic = myAIC, R = 1000) 
+boot.AIC.jump.child
+
+# confidence intervals
+quantile(boot.AIC.jump.child$t, probs = c(0.025, 0.975)) 
+
+# mean
+mean(boot.AIC.jump.child$t)
+```
+
+### T1: Non-linear Bootstrap Analysis (Fall)
+```{r exp1.fall.analysis.bootstrap, cache=TRUE}
+set.seed(123)
+
+# compile original data
+data1.fall <- data %>%
+  select(ID, Version, contains("Fall"))
+
+# prepare sampled data
+cleaning1.fall <- function(new_data) {
+  final <- new_data %>%
+  gather(orig2, DV_Subj_Fall, contains("Fall")) %>% 
+  separate(orig2, c("IV_Objective","Exp"), sep = "([\\_\\.])", extra = "drop") %>% 
+  mutate(DV_Subj_Fall = ifelse(Version %in% "A", 100 - as.numeric(DV_Subj_Fall), as.numeric(DV_Subj_Fall)), IV_Objective = as.numeric(sub("X","", IV_Objective))) %>% 
+  arrange(ID) 
+  
+  return(final)
+}
+
+# retrieve AIC difference between linear and non-linear models
+myAIC <- function(original, sample) {
+  new_data <- original[sample, ]
+  boot_data <- cleaning1.fall(new_data)
+
+  boot.model1.fall.child <- lmer(data = boot_data, formula = DV_Subj_Fall ~ IV_Objective + (1|ID))
+  AIC1 <- AIC(boot.model1.fall.child)
+  
+  boot.model1.expo.decay.fall.child <- lmer(data = boot_data, formula = DV_Subj_Fall ~ I(exp(-IV_Objective)) + (1|ID))
+  AIC2 <- AIC(boot.model1.expo.decay.fall.child)
+  
+  return(AIC2-AIC1)       
+} 
+
+# bootstrap AIC function
+boot.AIC.fall.child <- boot(data1.fall, statistic = myAIC, R = 1000) 
+boot.AIC.fall.child
+
+# confidence intervals
+quantile(boot.AIC.fall.child$t, probs = c(0.025, 0.975)) 
+
+# mean
+mean(boot.AIC.fall.child$t)
+```
+
+### T1: T-Test and Correlation Analysis
+```{r exp1.analysis.extra}
+# t test between jump and fall values
+t.test(exp1_full$DV_Subj_Fall, exp1_full$DV_Subj_Jump, paired = TRUE)
+
+# mean and standard deviations to supplement t test
+mean(exp1_full$DV_Subj_Fall, na.rm=TRUE)
+sd(exp1_full$DV_Subj_Fall, na.rm=TRUE)
+mean(exp1_full$DV_Subj_Jump, na.rm=TRUE)
+sd(exp1_full$DV_Subj_Jump, na.rm=TRUE)
+
+# regression between jump and fall values
+subj.corr.child <- lmer(data = exp1_full, formula = DV_Subj_Fall ~ DV_Subj_Jump + (1|ID))
+summary(subj.corr.child)
+confint(subj.corr.child)
+
+# correlation between jump and fall values
+cor.test(exp1_full$DV_Subj_Fall, exp1_full$DV_Subj_Jump)
+```
+
+
+
+
+
+
+
+
+# Task 2
+
+## Task 2: Tidy Data
+```{r exp2, echo=FALSE}
+exp2 <- data %>%
+  select(ID, Version, contains("Exp2.Test")) %>% # select Task 2 trials, ID, and Version
+  gather(orig, DV_Direction, contains("Exp2.Test")) %>% # split trials into rows
+  separate(orig, c("IV_Depth","Exp"), sep = "([\\_\\.])", extra = "drop") %>% # separate trial number
+  mutate(IV_Depth = as.numeric(sub("X","", IV_Depth)), IV_Obj_Depth_Diff = IV_Depth - 4, DV_Direction = ifelse(Version %in% "B", 100 - as.numeric(DV_Direction), as.numeric(DV_Direction))) %>% # find depth, adjust for counterbalancing in Version B
+  arrange(ID) # arrange by ID number
+```
+
+## Task 2: Plots
+```{r exp2.plot, echo=FALSE, eval=FALSE}
+# produce Task 2 plot
+(exp2.plot.child <- exp2 %>% 
+  ggplot(aes(x = IV_Obj_Depth_Diff, y= DV_Direction)) +
+  scale_x_continuous(breaks=seq(-3,3,1)) +
+  geom_line(aes(group=ID), color=rgb(0,0,0), alpha=0.1, size=.8) +
+  geom_boxplot(aes(group=IV_Obj_Depth_Diff), color="#333333", width=.5, fill=NA, size=1) +
+  geom_point(color="#5F8DAE", size=3) +
+  stat_summary(fun.data="mean_cl_boot", geom="errorbar", color="#003e67", width=0.2, size=1.5) +
+  stat_summary(fun="mean", geom="point", shape=23, size=4, fill="white", color="#003e67", stroke=2) +
+  theme_bw() +
+  theme(axis.text=element_text(size=23)) +
+  labs(x = "", y = "") +
+  coord_flip() )
+
+ggsave(filename="task2.child.plot.png", path="/Users/Nensi/Desktop", width = 30, height = 21, units = "cm", dpi=300)
+```
+
+```{r exp2.plot.indv, echo=FALSE, eval=FALSE}
+# produce Task 2 plot (individual graph per participant)
+(exp2.plot.indv.child <- exp2 %>% 
+  ggplot(aes(x = IV_Obj_Depth_Diff, y= DV_Direction)) +
+  scale_x_continuous(breaks=seq(-3,3,1)) +
+  facet_wrap(vars(ID), ncol = 6) +
+  geom_line(aes(group=ID), color=rgb(0,0,0), alpha=0.2, size=1.5) +
+  geom_point(color="#5F8DAE", size=3) +
+  theme_bw() +
+  theme(axis.text=element_text(size=13)) +
+  ylim(0, 100) +
+  labs(x = "", y = "") +
+  coord_flip() )
+
+ggsave(filename="task2.child.indv.png", path="/Users/Nensi/Desktop", width = 36, height = 30, units = "cm", dpi=300)
+```
+
+## Task 2: Main Analysis
+```{r exp2.analysis}
+# null model (converges, no error message)
+null2.child <- lmer(data = exp2, formula = DV_Direction ~ 1 + (1+IV_Obj_Depth_Diff|ID))
+
+# hypothesis-driven model (converges, no error message)
+model2.child <- lmer(data = exp2, formula = DV_Direction ~ IV_Obj_Depth_Diff + (1+IV_Obj_Depth_Diff|ID))
+
+# standardized model (converges, no error message)
+model2.standard.child <- lmer(data = exp2, formula = scale(DV_Direction) ~ scale(IV_Obj_Depth_Diff) + (1+scale(IV_Obj_Depth_Diff)|ID))
+
+# task 2 summaries
+confint(model2.child)
+summary(model2.child)
+summary(model2.standard.child)
+
+# likelihood ratio test for comparing models
+anova(null2.child, model2.child)
+
+# r-squared For generalized mixed-effect models
+r.squaredGLMM(null2.child)
+r.squaredGLMM(model2.child) # adding predictors adds 54.51% variance explained 
+
+# summary stats
+exp2 %>% group_by(IV_Obj_Depth_Diff) %>%
+    summarise(mean = ci(DV_Direction)[1], 
+                     lowCI = ci(DV_Direction)[2],
+                     hiCI = ci(DV_Direction)[3], 
+                     sd = ci (DV_Direction)[4])
+```
+
+## Task 2: Power Analysis
+```{r exp2.power.analysis, echo=FALSE, eval=FALSE}
+sim2.child <- powerCurve(extend(model2.child, along="ID", n=500), along="ID", breaks = c(1, 3, 5), alpha = .05, seed = 123)
+plot(sim2.child)
+print(sim2.child)
+```
+
+## Task 2: Non-linear Bootstrap Analysis
+```{r exp2.bootstrap, cache=TRUE}
+set.seed(123)
+
+data2 <- data %>%
+  select(ID, contains("Exp2.Test"), Version)
+
+cleaning2 <- function(new_data) {
+  final <- new_data %>%
+  gather(orig, DV_Direction, contains("Exp2.Test")) %>%
+  separate(orig, c("IV_Depth","Exp"), sep = "([\\_\\.])", extra = "drop") %>% 
+  mutate(IV_Depth = as.numeric(sub("X","", IV_Depth)), IV_Obj_Depth_Diff = IV_Depth - 4, DV_Direction = ifelse(Version %in% "B", 100 - as.numeric(DV_Direction), as.numeric(DV_Direction))) %>% 
+    arrange(ID)
+  
+  return(final)
+}
+
+myAIC <- function(original, sample) {
+  new_data <- original[sample,]
+  boot_data <- cleaning2(new_data)
+  
+  boot.model2.child <- lmer(data = boot_data, formula = DV_Direction ~ IV_Obj_Depth_Diff + (1|ID))
+  AIC1 <- AIC(boot.model2.child)
+  
+  boot.model2.logistic.child <- lmer(data = boot_data, formula = DV_Direction ~ I(((1+exp(IV_Obj_Depth_Diff))^(-1))) + (1|ID))
+  AIC2 <- AIC(boot.model2.logistic.child)
+  
+  return(AIC2-AIC1)               
+} 
+
+# bootstrap AIC function
+boot.AIC.exp2.child <- boot(data2, statistic = myAIC, R = 1000) 
+boot.AIC.exp2.child
+
+# confidence intervals
+quantile(boot.AIC.exp2.child$t, probs = c(0.025, 0.975)) 
+
+#mean
+mean(boot.AIC.exp2.child$t)
+```
+
+
+
+
+
+
+# Task 3
+
+## Task 3: Tidy Data
+```{r exp3, echo=FALSE}
+exp3 <- data %>%
+  select(ID, Version, contains("Exp3.Test")) %>% # select Task 3 trials, ID, and Version
+  gather(orig, DV_Preference, contains("Exp3.Test")) %>% # split trials into rows
+  separate(orig, c("IV_Depth_Accept","Exp"), sep = "([\\_\\.])", extra = "drop") %>% # separate trial number
+  mutate(IV_Depth_Accept = as.numeric(sub("X","", IV_Depth_Accept)), DV_Preference = ifelse(Version %in% "A", 100 - as.numeric(DV_Preference), as.numeric(DV_Preference))) %>% # find depth, adjust for counterbalancing
+  arrange(ID) # arrange by ID number
+```
+
+## Task 3: Plots
+```{r exp3.plot, echo=FALSE, eval=FALSE}
+(exp3.plot.child <- exp3 %>% 
+  ggplot(aes(x = IV_Depth_Accept, y = DV_Preference)) +
+  scale_x_continuous(breaks=seq(1,5,1)) +
+  geom_line(aes(group=ID), color=rgb(0,0,0), alpha=0.1, size=.8) +
+  geom_boxplot(aes(group=IV_Depth_Accept), color="#333333", width=.4, fill=NA, size=1) +
+  geom_point(color="#5F8DAE", size=3) +
+  stat_summary(fun.data="mean_cl_boot", geom="errorbar", color="#003e67", width=0.15, size=1.5) +
+  stat_summary(fun="mean", geom="point", shape=23, size=4, fill="white", color="#003e67", stroke=2) +
+  theme_bw() +
+  theme(axis.text=element_text(size=23)) +
+  labs(x = "", y = ""))
+
+ggsave(filename="task3.child.plot.png", path="/Users/Nensi/Desktop", width = 30, height = 21, units = "cm", dpi=300)
+```
+
+```{r exp3.plot.indv, echo=FALSE, eval=FALSE}
+(exp3.plot.indv.child <- exp3 %>% 
+  ggplot(aes(x = IV_Depth_Accept, y = DV_Preference)) +
+  scale_x_continuous(breaks=seq(1,5,1)) +
+  facet_wrap(vars(ID), ncol = 6) +
+  geom_line(aes(group=ID), color=rgb(0,0,0), alpha=0.2, size=1.5) +
+  geom_point(color="#5F8DAE", size=3) +
+  theme_bw() +
+  theme(axis.text=element_text(size=13)) +
+  ylim(0, 100) +
+  labs(x = "", y = ""))
+
+ggsave(filename="task3.child.indv.png", path="/Users/Nensi/Desktop", width = 36, height = 30, units = "cm", dpi=300)
+```
+
+## Task 3: Main Analysis
+```{r exp3.analysis}
+# null model (converges, singluar error message)
+null3.child <- lmer(data = exp3, formula = DV_Preference ~ 1 + (1+IV_Depth_Accept|ID))
+
+# hypothesis-driven model (converges, singluar error message)
+model3.child <- lmer(data = exp3, formula = DV_Preference ~ IV_Depth_Accept + (1+IV_Depth_Accept|ID))
+
+# hypothesis-driven standardized (converges, singluar error message)
+model3.standard.child <- lmer(data = exp3, formula = scale(DV_Preference) ~ scale(IV_Depth_Accept) + (1+scale(IV_Depth_Accept)|ID))
+
+# task 3 summaries
+confint(model3.child)
+summary(model3.child)
+summary(model3.standard.child)
+
+# likelihood ratio test for comparing models
+anova(null3.child, model3.child) 
+
+# r-squared For generalized mixed-effect models
+r.squaredGLMM(null3.child)
+r.squaredGLMM(model3.child) # adding predictors adds 0.77% variance explained 
+```
+
+## Task 3: Power Analysis
+```{r exp3.power.analysis, echo=FALSE, eval=FALSE}
+sim3.child <- powerCurve(extend(model3.child, along="ID", n=120), along="ID", breaks = c(40, 60, 80), alpha = .05, seed = 123)
+plot(sim3.child)
+print(sim3.child)
+```
+
+## Task 3: Non-linear Bootstrap Analysis
+```{r exp3.bootstrap, cache=TRUE}
+set.seed(123)
+
+data3 <- data %>%
+  select(ID, contains("Exp3.Test"), Version)
+
+cleaning3 <- function(new_data) {
+  final <- new_data %>%
+  gather(orig, DV_Preference, contains("Exp3.Test")) %>% # split trials into rows
+  separate(orig, c("IV_Depth_Accept","Exp"), sep = "([\\_\\.])", extra = "drop") %>% # separate trial number
+  mutate(IV_Depth_Accept = as.numeric(sub("X","", IV_Depth_Accept)), DV_Preference = ifelse(Version %in% "A", 100 - as.numeric(DV_Preference), as.numeric(DV_Preference))) %>% # find depth, adjust for counterbalancing
+  arrange(ID)
+
+  return(final)
+}
+
+# retrieve AIC difference between linear and non-linear models
+myAIC <- function(original, sample) {
+  new_data <- original[sample,]
+  boot_data <- cleaning3(new_data)
+
+  boot.model3.child <- lmer(data = boot_data, formula = DV_Preference ~ IV_Depth_Accept + (1|ID))
+  AIC1 <- AIC(boot.model3.child)
+  
+  boot.model3.logarithmic.child <- lmer(data = boot_data, formula = DV_Preference ~ I(log(IV_Depth_Accept)) + (1|ID))
+  AIC2 <- AIC(boot.model3.logarithmic.child)
+
+  return(AIC2-AIC1)               
+} 
+
+# bootstrap AIC function
+boot.AIC.exp3.child <- boot(data3, statistic = myAIC, R = 1000) 
+boot.AIC.exp3.child
+
+# confidence intervals
+quantile(boot.AIC.exp3.child$t, probs = c(0.025, 0.975)) 
+
+#mean
+mean(boot.AIC.exp3.child$t)
+```
+
+
+
+
+
+
+# Task 4
+
+## Task 4: Tidy Data
+```{r exp4, echo=FALSE}
+exp4 <- data %>%
+  select(ID, Version, contains("Exp4.Test")) %>% # select Task 4 trials, ID, and Version
+  gather(orig, DV_Depth, contains("Exp4.Test")) %>% # split trials into rows
+  separate(orig, c("IV_Preference","Exp"), sep = "([\\_\\.])", extra = "drop") %>% # separate trial number
+  mutate(IV_Preference = as.numeric(sub("X","", IV_Preference)), DV_Depth = ifelse(Version %in% "A", 100 - as.numeric(DV_Depth), as.numeric(DV_Depth))) %>% # find preference, adjust for counterbalancing
+  arrange(ID) # arrange by ID number
+
+```
+
+## Task 4: Plots
+```{r exp4.plot, echo=FALSE, eval=FALSE}
+(exp4.plot.child <- exp4 %>% 
+  ggplot(aes(x = IV_Preference, y = DV_Depth)) +
+  scale_x_continuous(breaks=seq(1,7,1)) +
+  geom_line(aes(group=ID), color=rgb(0,0,0), alpha=0.1, size=.8) +
+  geom_boxplot(aes(group=IV_Preference), color="#333333", width=.5, fill=NA, size=1) +
+  geom_point(color="#5F8DAE", size=3) +
+  stat_summary(fun.data="mean_cl_boot", geom="errorbar", color="#003e67", width=0.15, size=1.5) +
+  stat_summary(fun="mean", geom="point", shape=23, size=4, fill="white", color="#003e67", stroke=2) +
+  theme_bw() +
+  theme(axis.text=element_text(size=23)) +
+  labs(x = "", y = ""))
+
+ggsave(filename="task4.child.plot.png", path="/Users/Nensi/Desktop", width = 30, height = 20, units = "cm", dpi=300)
+```
+
+```{r exp4.plot.indv, echo=FALSE, eval=FALSE}
+(exp4.plot.indv.child <- exp4 %>% 
+  ggplot(aes(x = IV_Preference, y = DV_Depth)) +
+  scale_x_continuous(breaks=seq(1,7,1)) +
+  facet_wrap(vars(ID), ncol = 6) +
+  geom_line(aes(group=ID), color=rgb(0,0,0), alpha=0.2, size=1.5) +
+  geom_point(color="#5F8DAE", size=3) +
+  theme_bw() +
+  theme(axis.text=element_text(size=13)) +
+  ylim(0, 100) +
+  labs(x = "", y = ""))
+
+ggsave(filename="task4.child.indv.png", path="/Users/Nensi/Desktop", width = 36, height = 30, units = "cm", dpi=300)
+
+```
+
+## Task 4: Main Analysis
+```{r exp4.analysis}
+# null model (converges, no error messages)
+null4.child <- lmer(data = exp4, formula = DV_Depth ~ 1 + (1+IV_Preference|ID))
+
+# hypothesis-driven model (converges, no error messages)
+model4.child <- lmer(data = exp4, formula = DV_Depth ~ IV_Preference + (1+IV_Preference|ID))
+
+# hypothesis-driven model, standardized (converges, no error messages)
+model4.standard.child <- lmer(data = exp4, formula = scale(DV_Depth) ~ scale(IV_Preference) + (1+scale(IV_Preference)|ID))
+
+# task 4 summaries
+confint(model4.child)
+summary(model4.child)
+summary(model4.standard.child)
+
+# likelihood ratio test for comparing models
+anova(null4.child, model4.child) 
+
+# r-squared For generalized mixed-effect models
+r.squaredGLMM(null4.child)
+r.squaredGLMM(model4.child) # adding predictors adds 16.41% variance explained 
+```
+
+## Task 4: Power Analysis
+```{r exp4.power.analysis, echo=FALSE, eval=FALSE}
+sim4.child <- powerCurve(extend(model4.child, along="ID", n=500),along="ID", breaks = c(2, 4, 6, 8), alpha = .05, seed = 123)
+plot(sim4.child)
+print(sim4.child)
+```
+
+## Task 4: Nonlinear Bootstrap Analysis
+```{r exp4.bootstrap, cache=TRUE}
+set.seed(123)
+
+data4 <- data %>%
+  select(ID, contains("Exp4.Test"), Version)
+
+cleaning4 <- function(new_data) {
+  final <- new_data %>%
+  gather(orig, DV_Depth, contains("Exp4.Test")) %>%
+  separate(orig, c("IV_Preference","Exp"), sep = "([\\_\\.])", extra = "drop") %>% 
+  mutate(IV_Preference = as.numeric(sub("X","", IV_Preference)), DV_Depth = ifelse(Version %in% "A", 100 - as.numeric(DV_Depth), as.numeric(DV_Depth))) %>% 
+  arrange(ID)
+
+  return(final)
+}
+
+# retrieve AIC difference between linear and non-linear models
+myAIC <- function(original, sample) {
+  new_data <- original[sample,]
+  boot_data <- cleaning4(new_data)
+
+  boot.model4.child <- lmer(data = boot_data, formula = DV_Depth ~ IV_Preference + (1|ID))
+  AIC1 <- AIC(boot.model4.child)
+  
+  boot.model4.logarithmic.child <- lmer(data = boot_data, formula = DV_Depth ~ I(log(IV_Preference)) + (1|ID))
+  AIC2 <- AIC(boot.model4.logarithmic.child)
+  
+  return(AIC2-AIC1)               
+} 
+
+# bootstrap AIC function
+boot.AIC.exp4.child <- boot(data4, statistic = myAIC, R = 1000) 
+boot.AIC.exp4.child
+
+# confidence intervals
+quantile(boot.AIC.exp4.child$t, probs = c(0.025, 0.975)) 
+
+#mean
+mean(boot.AIC.exp4.child$t)
+```
+
+
+
+
+
+
+## Across-Task Correlation
+```{r tau.analysis, cache=TRUE}
+exp1.fall.tau.child <- exp1_fall %>%
+  group_by(ID) %>%
+  summarise(task1b = 
+  cor.test(IV_Objective,DV_Subj_Fall*-1, method="kendall")$estimate) %>%
+  mutate(task1b.z = scale(task1b))
+
+exp1.jump.tau.child <- exp1_jump %>%
+  group_by(ID) %>%
+  summarise(task1a = 
+  cor.test(IV_Objective,DV_Subj_Jump*-1, method="kendall")$estimate) %>%
+    mutate(task1a.z = scale(task1a))
+
+exp2.tau.child <- exp2 %>%
+  group_by(ID) %>%
+  summarise(task2 = 
+  cor.test(DV_Direction,IV_Obj_Depth_Diff, method="kendall")$estimate)%>%
+    mutate(task2.z = scale(task2))
+
+exp3.tau.child <- exp3 %>%
+  group_by(ID) %>%
+  summarise(task3 = 
+  cor.test(DV_Preference,IV_Depth_Accept, method="kendall")$estimate)%>%
+    mutate(task3.z = scale(task3))
+
+exp4.tau.child <- exp4 %>%
+  group_by(ID) %>%
+  summarise(task4 = 
+  cor.test(DV_Depth,IV_Preference, method="kendall")$estimate)%>%
+    mutate(task4.z = scale(task4))
+
+taus.exp1.child <- full_join(exp1.jump.tau.child, exp1.fall.tau.child)
+taus.exp12.child <- full_join(taus.exp1.child, exp2.tau.child)
+taus.exp123.child <- full_join(taus.exp12.child, exp3.tau.child)
+taus.child <- full_join(taus.exp123.child, exp4.tau.child)
+taus.t.child <- select(taus.child, !contains("z"))
+taus.z.child <- select(taus.child, contains("z")) %>%
+  rename(task1a =task1a.z,
+          task1b = task1b.z,
+          task2 = task2.z,
+          task3 = task3.z,
+          task4 = task4.z)
+
+cor.mat.child <- cor(taus.z.child, method = "kendall",use="complete.obs")
+# mat : is a matrix of data
+# ... : further arguments to pass to the native R cor.test function
+
+cor.mtest.child <- function(mat, ...) {
+    mat <- as.matrix(mat)
+    n <- ncol(mat)
+    p.mat<- matrix(NA, n, n)
+    diag(p.mat) <- 0
+    for (i in 1:(n - 1)) {
+        for (j in (i + 1):n) {
+            tmp <- cor.test(mat[, i], mat[, j], method="kendall",...)
+            p.mat[i, j] <- p.mat[j, i] <- tmp$p.value
+        }
+    }
+  colnames(p.mat) <- rownames(p.mat) <- colnames(mat)
+  p.mat
+}
+
+p.mat.child <- cor.mtest.child(taus.z.child)
+
+corrplot::corrplot(cor.mat.child, method="color",
+                   # type="lower",
+                   order="original",
+                   outline=TRUE,
+                   tl.col="black",
+                   addCoef.col = "black",
+                   sig.level = 0.05, 
+                   cl.align.text = "l",
+                   insig = "pch",
+                   p.mat=p.mat.child)
+```
+
+
+
+
+
+
+# Subjective Exploratory Analyses
+
+## Subjective Applied to Task 2 Analysis
+```{r exploratory.subj.analyses.original.AICs.Exp.2, cache=TRUE}
+exp1_full_edit2 <- exp1_full %>%
+  rename(IV_Depth = IV_Objective) %>% 
+  select(-Version, -Exp)
+
+exp2_sub <- full_join(exp2, exp1_full_edit2, by=c("ID", "IV_Depth")) %>% 
+  filter(!(ID=="33" & IV_Depth=="1"), !(ID=="51" & IV_Depth=="3"), !(ID=="106" & IV_Depth=="5")) %>%
+  arrange(ID)
+
+# Comparing Subjective v Objective Danger Assessments (Exp. 2)
+# Objective
+sub.model2.child <- lmer(data = exp2_sub, formula = DV_Direction ~ IV_Obj_Depth_Diff + (1|ID), na.action = na.exclude)
+# summary(sub.model2.child)
+
+# Jump
+sub.model2.jump.child <- lmer(data = exp2_sub, formula = DV_Direction ~ DV_Subj_Jump_Diff + (1|ID), na.action = na.exclude)
+# summary(sub.model2.jump.child)
+
+# Fall
+sub.model2.fall.child <- lmer(data = exp2_sub, formula = DV_Direction ~ DV_Subj_Fall_Diff + (1|ID), na.action = na.exclude)
+# summary(sub.model2.fall.child)
+
+# Jump Objective
+sub.model2.jump.obj.child <- lmer(data = exp2_sub, formula = DV_Direction ~ DV_Subj_Jump_Diff + IV_Obj_Depth_Diff + (1|ID), na.action = na.exclude)
+# summary(sub.model2.jump.obj.child)
+
+# Fall Objective
+sub.model2.fall.obj.child <- lmer(data = exp2_sub, formula = DV_Direction ~ DV_Subj_Fall_Diff + IV_Obj_Depth_Diff + (1|ID), na.action = na.exclude)
+# summary(sub.model2.fall.obj.child)
+
+# Jump Fall
+sub.model2.jump.fall.child  <- lmer(data = exp2_sub, formula = DV_Direction ~ DV_Subj_Jump_Diff + DV_Subj_Fall_Diff + (1|ID), na.action = na.exclude)
+# summary(sub.model2.jump.fall.child)
+
+# Full
+sub.model2.full.child <- lmer(data = exp2_sub, formula = DV_Direction ~ DV_Subj_Jump_Diff + DV_Subj_Fall_Diff + IV_Obj_Depth_Diff + (1|ID), na.action = na.exclude)
+# summary(sub.model2.full.child)
+
+# Full, scaled
+sub.model2.full.child.scaled <- lmer(data = exp2_sub, formula = scale(DV_Direction) ~ scale(DV_Subj_Jump_Diff) + scale(DV_Subj_Fall_Diff) + scale(IV_Obj_Depth_Diff) + (1|ID), na.action = na.exclude)
+
+# compare AICs
+anova(sub.model2.child, sub.model2.jump.child, sub.model2.fall.child, sub.model2.jump.obj.child, sub.model2.fall.obj.child, sub.model2.jump.fall.child, sub.model2.full.child)
+
+# variance analysis
+r.squaredGLMM(sub.model2.child)
+r.squaredGLMM(sub.model2.full.child) # adding mental state predictors adds 0.47% variance explained
+
+summary(sub.model2.full.child)
+summary(sub.model2.full.child.scaled)
+
+confint(sub.model2.full.child)
+```
+
+## Subjective Applied to Task 3 Analysis
+```{r exploratory.subj.analyses.original.AICs.Exp.3, cache=TRUE}
+exp1_full_edit3 <- exp1_full %>%
+  filter(IV_Objective < 6) %>% 
+  rename(IV_Depth_Accept = IV_Objective) %>% 
+  select(-Version, -Exp)
+
+exp3_sub <- full_join(exp3, exp1_full_edit3, by=c("ID", "IV_Depth_Accept")) %>% 
+  filter(!(ID=="33" & IV_Depth_Accept=="1"), !(ID=="51" & IV_Depth_Accept=="3"), !(ID=="106" & IV_Depth_Accept=="5")) %>% 
+  select(-DV_Subj_Fall_Diff, -DV_Subj_Jump_Diff, -DV_Subj_Fall_Baseline, -DV_Subj_Jump_Baseline) %>% 
+  arrange(ID)
+
+# Comparing Subjective v Objective Danger Assessments (Exp. 3)
+# Objective
+sub.model3.child <- lmer(data = exp3_sub, formula = DV_Preference ~ IV_Depth_Accept + (1|ID), na.action = na.exclude)
+# summary(sub.model3.child)
+
+# Jump
+sub.model3.jump.child <- lmer(data = exp3_sub, formula = DV_Preference ~ DV_Subj_Jump + (1|ID), na.action = na.exclude)
+# summary(sub.model3.jump.child)
+
+# Fall
+sub.model3.fall.child <- lmer(data = exp3_sub, formula = DV_Preference ~ DV_Subj_Fall + (1|ID), na.action = na.exclude)
+# summary(sub.model3.fall.child)
+
+# Jump Objective
+sub.model3.jump.obj.child <- lmer(data = exp3_sub, formula = DV_Preference ~ DV_Subj_Jump + IV_Depth_Accept + (1|ID), na.action = na.exclude)
+# summary(sub.model3.jump.obj.child)
+
+# Fall Objective
+sub.model3.fall.obj.child <- lmer(data = exp3_sub, formula = DV_Preference ~ DV_Subj_Fall + IV_Depth_Accept + (1|ID), na.action = na.exclude)
+# summary(sub.model3.fall.obj.child)
+
+# Jump Fall
+sub.model3.jump.fall.child <- lmer(data = exp3_sub, formula = DV_Preference ~ DV_Subj_Jump + DV_Subj_Fall + (1|ID), na.action = na.exclude)
+# summary(sub.model3.jump.fall.child)
+
+# Full
+sub.model3.full.child <- lmer(data = exp3_sub, formula = DV_Preference ~ DV_Subj_Jump + DV_Subj_Fall + IV_Depth_Accept + (1|ID), na.action = na.exclude)
+# summary(sub.model3.full.child)
+
+# Full, scaled
+sub.model3.full.child.scaled <- lmer(data = exp3_sub, formula = scale(DV_Preference) ~ scale(DV_Subj_Jump) + scale(DV_Subj_Fall) + scale(IV_Depth_Accept) + (1|ID), na.action = na.exclude)
+
+# compare AICs
+anova(sub.model3.child, sub.model3.jump.child, sub.model3.fall.child, sub.model3.jump.obj.child, sub.model3.fall.obj.child, sub.model3.jump.fall.child, sub.model3.full.child)
+
+# variance analysis
+r.squaredGLMM(sub.model3.child)
+r.squaredGLMM(sub.model3.full.child) # adding mental state predictors adds 0.10% variance explained
+
+summary(sub.model3.full.child)
+summary(sub.model3.full.child.scaled)
+
+confint(sub.model3.full.child)
+```
+
+## Subjective Bootstrap on Task 2 Analysis
+```{r exploratory.subj.analyses.bootstrap.AICs.Exp.2, cache=TRUE}
+set.seed(123)
+
+# compile all relevant experiments for bootstrap sampling by ID
+data1.sub <- data  %>%
+  select(ID, Version, contains("Jump"), contains("Fall"), contains("Exp2.Test"))
+
+# individually gather exp. 1 under sampled IDs
+cleaning1.sub <- function(new_data) {
+
+  sub1.jump <- new_data %>%
+    select(ID, Version, contains("Jump")) %>%  
+    gather(orig, DV_Subj_Jump, contains("Jump")) %>% 
+    separate(orig, c("IV_Objective","Exp"), sep = "([\\_\\.])", extra = "drop") %>% 
+    mutate(DV_Subj_Jump = ifelse(Version %in% "A", 100 - as.numeric(DV_Subj_Jump),  as.numeric(DV_Subj_Jump)), IV_Objective = as.numeric(sub("X","", IV_Objective))) %>%
+    arrange(ID) %>% 
+    mutate(row=row_number())
+  
+  sub1.fall <- new_data %>%
+    select(ID, Version, contains("Fall")) %>%
+    gather(orig2, DV_Subj_Fall, contains("Fall")) %>% 
+    separate(orig2, c("IV_Objective","Exp"), sep = "([\\_\\.])", extra = "drop") %>% 
+    mutate(DV_Subj_Fall = ifelse(Version %in% "A", 100 - as.numeric(DV_Subj_Fall), as.numeric(DV_Subj_Fall)), IV_Objective = as.numeric(sub("X","", IV_Objective))) %>% 
+    arrange(ID) %>% 
+    mutate(row=row_number()) 
+    
+  # find baseline values for jump
+  sub1.baseline_jump <- sub1.jump %>%
+    select(ID, IV_Objective, DV_Subj_Jump) %>%
+    filter(IV_Objective == "4") %>% 
+    mutate(count = 7) %>% 
+    uncount(count) %>%
+    rename(DV_Subj_Jump_Baseline = DV_Subj_Jump) %>% 
+    select(DV_Subj_Jump_Baseline)
+    
+  # find baseline values for fall
+  sub1.baseline_fall <- sub1.fall %>%
+    select(ID, IV_Objective, DV_Subj_Fall) %>% 
+    filter(IV_Objective == "4") %>% 
+    mutate(count = 7) %>%
+    uncount(count) %>% 
+    rename(DV_Subj_Fall_Baseline = DV_Subj_Fall) %>% 
+    select(DV_Subj_Fall_Baseline)
+  
+  # compile final jump data
+  sub1.jump <- cbind(sub1.jump, sub1.baseline_jump) %>% 
+    mutate(DV_Subj_Jump_Diff = DV_Subj_Jump - DV_Subj_Jump_Baseline)
+  
+  # compile final fall data
+  sub1.fall <- cbind(sub1.fall, sub1.baseline_fall) %>% 
+    mutate(DV_Subj_Fall_Diff = DV_Subj_Fall - DV_Subj_Fall_Baseline) %>% 
+    select(-Exp, -IV_Objective, -Version, -ID)
+
+  # compile combined dataset with participant exclusions (incomplete trials)
+  sub1_full <- merge(sub1.jump, sub1.fall, c("row"="row")) %>% 
+    rename(IV_Depth = IV_Objective) %>% 
+    filter(!(ID=="33" & IV_Depth=="1"), !(ID=="51" & IV_Depth=="3"), !(ID=="106" & IV_Depth=="5")) %>%  
+    select(-row, -Exp, - Version) %>% 
+    arrange(ID) 
+  
+  return(sub1_full)
+}
+
+# individually gather exp. 2 under sampled IDs
+cleaning2.sub <- function(new_data) {
+  final <- new_data %>%
+  select(ID, Version, contains("Exp2.Test")) %>% 
+  gather(orig, DV_Direction, contains("Exp2.Test")) %>%
+  separate(orig, c("IV_Depth","Exp"), sep = "([\\_\\.])", extra = "drop") %>% 
+  mutate(IV_Depth = as.numeric(sub("X","", IV_Depth)), IV_Obj_Depth_Diff = IV_Depth - 4, DV_Direction = ifelse(Version %in% "B", 100 - as.numeric(DV_Direction), as.numeric(DV_Direction))) %>%
+  filter(!(ID=="33" & IV_Depth=="1"), !(ID=="51" & IV_Depth=="3"), !(ID=="106" & IV_Depth=="5")) %>% 
+    arrange(ID)
+  
+  return(final)
+}
+
+# Comparing Subjective v Objective Danger Assessments (Exp. 2) 
+
+# retrieve AIC difference between two lowest AIC models
+myAIC <- function(original, sample) {
+  new_data <- original[sample,]
+  
+  boot_data1 <- cleaning1.sub(new_data)
+  boot_data2 <- cleaning2.sub(new_data)
+  
+  boot_data <- cbind(boot_data1, boot_data2)
+  
+  
+  boot.model2.child <- lmer(data = boot_data, formula = DV_Direction ~ IV_Obj_Depth_Diff + (1|ID), na.action = na.exclude)
+  AIC1 <- AIC(boot.model2.child)
+  
+  boot.sub.model2.fall.obj.child <- lmer(data = boot_data, formula = DV_Direction ~ DV_Subj_Fall_Diff + IV_Obj_Depth_Diff + (1|ID), na.action = na.exclude)
+  AIC2 <- AIC(boot.sub.model2.fall.obj.child)
+  
+  return(AIC2-AIC1)               
+} 
+
+# bootstrap AIC function
+boot.AIC.sub2.child <- boot(data1.sub, statistic = myAIC, R = 1000) 
+boot.AIC.sub2.child
+
+# confidence intervals
+quantile(boot.AIC.sub2.child$t, probs = c(0.025, 0.975)) 
+
+#mean
+mean(boot.AIC.sub2.child$t)
+```
+
+## Subjective Bootstrap on Task 3 Analysis
+```{r exploratory.subj.analyses.bootstrap.AICs.Exp.3, cache=TRUE}
+set.seed(123)
+
+# compile all relevant experiments for bootstrap sampling by ID
+data3.sub <- data  %>%
+  select(ID, Version, contains("Jump"), contains("Fall"), contains("Exp3.Test"))
+
+# individually gather exp. 1 under sampled IDs
+cleaning1b.sub <- function(new_data) {
+
+  sub1b.jump <- new_data %>%
+    select(ID, Version, contains("Jump")) %>%  
+    gather(orig, DV_Subj_Jump, contains("Jump")) %>% 
+    separate(orig, c("IV_Objective","Exp"), sep = "([\\_\\.])", extra = "drop") %>% 
+    mutate(DV_Subj_Jump = ifelse(Version %in% "A", 100 - as.numeric(DV_Subj_Jump),  as.numeric(DV_Subj_Jump)), IV_Objective = as.numeric(sub("X","", IV_Objective))) %>%
+    arrange(ID) %>% 
+    mutate(row=row_number())
+  
+  sub1b.fall <- new_data %>%
+    select(ID, Version, contains("Fall")) %>%
+    gather(orig2, DV_Subj_Fall, contains("Fall")) %>% 
+    separate(orig2, c("IV_Objective","Exp"), sep = "([\\_\\.])", extra = "drop") %>% 
+    mutate(DV_Subj_Fall = ifelse(Version %in% "A", 100 - as.numeric(DV_Subj_Fall), as.numeric(DV_Subj_Fall)), IV_Objective = as.numeric(sub("X","", IV_Objective))) %>% 
+    arrange(ID) %>% 
+    select(-ID, -IV_Objective, -Exp, - Version) %>% 
+    mutate(row=row_number()) 
+
+  # compile combined dataset with participant exclusions (incomplete trials)
+  sub1b_full <- merge(sub1b.jump, sub1b.fall, c("row"="row")) %>% 
+    rename(IV_Depth_Accept = IV_Objective) %>% 
+    filter(!(ID=="33" & IV_Depth_Accept=="1"), !(ID=="51" & IV_Depth_Accept=="3"), !(ID=="106" & IV_Depth_Accept=="5")) %>%  
+    filter(IV_Depth_Accept < 6) %>% 
+    select(-row, -Exp, - Version) %>% 
+    arrange(ID) 
+
+  return(sub1b_full)
+}
+
+# individually gather exp. 2 under sampled IDs
+cleaning3.sub <- function(new_data) {
+  final <- new_data %>%
+  select(ID, Version, contains("Exp3.Test")) %>% 
+  gather(orig, DV_Preference, contains("Exp3.Test")) %>% 
+  separate(orig, c("IV_Depth_Accept","Exp"), sep = "([\\_\\.])", extra = "drop") %>% 
+  mutate(IV_Depth_Accept = as.numeric(sub("X","", IV_Depth_Accept)), DV_Preference = ifelse(Version %in% "A", 100 - as.numeric(DV_Preference), as.numeric(DV_Preference))) %>%
+  filter(!(ID=="33" & IV_Depth_Accept=="1"), !(ID=="51" & IV_Depth_Accept=="3"), !(ID=="106" & IV_Depth_Accept=="5")) %>% 
+  arrange(ID)
+  
+  return(final)
+}
+
+#Comparing Subjective v Objective Danger Assessments (Exp. 3)
+
+# retrieve AIC difference between two lowest AIC models
+myAIC <- function(original, sample) {
+  new_data <- original[sample,]
+
+  boot_data1 <- cleaning1b.sub(new_data)
+  boot_data2 <- cleaning3.sub(new_data)
+  
+  boot_data <- cbind(boot_data1, boot_data2)
+
+  boot.model3.child <- lmer(data = boot_data, formula = DV_Preference ~ IV_Depth_Accept + (1|ID), na.action = na.exclude)
+  AIC1 <- AIC(boot.model3.child)
+  
+  boot.sub.model2.fall.child <- lmer(data = boot_data, formula = DV_Preference ~ DV_Subj_Fall + (1|ID), na.action = na.exclude)
+  
+  AIC2 <- AIC(boot.sub.model2.fall.child)
+  
+  return(AIC2-AIC1)               
+} 
+
+# bootstrap AIC function
+boot.AIC.sub3.child <- boot(data3.sub, statistic = myAIC, R = 1000) 
+boot.AIC.sub3.child
+
+# confidence intervals
+quantile(boot.AIC.sub3.child$t, probs = c(0.025, 0.975)) 
+
+#mean
+mean(boot.AIC.sub3.child$t)
+```

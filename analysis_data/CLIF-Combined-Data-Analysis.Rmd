@@ -1,0 +1,166 @@
+---
+title: "CLIF Combined Data Analysis"
+author: "Nensi Gjata and Shari Liu"
+date: "2/7/2021"
+output:
+  html_document: default
+  pdf_document: default
+editor_options:
+  chunk_output_type: console
+---
+
+# Load, Import, and Organize Data
+
+```{r load, message=FALSE}
+library(tidyverse)
+library(janitor)
+library(effects)
+library(reghelper)
+library(dplyr)
+library(lme4)
+library(lmerTest)
+
+knitr::opts_chunk$set(warning = FALSE, message = FALSE) 
+
+setwd("~/Desktop/Nensi/Thesis/Analysis Datasets")
+```
+
+```{r combine.datasets, echo=FALSE, eval=FALSE}
+# # load adult dataset
+# adult.data <- read.csv(file="Adult_Dataset.csv") %>%
+#   mutate(ID=as.factor(ID),
+#          group = "adults")
+# 
+# # load child dataset
+# kid.data <- read.csv(file="Child_Dataset.csv") %>%
+#   mutate(ID=as.factor((as.numeric(ID+108))),
+#          group = "kids") # adjust child subject IDs to be unique from 108 adults
+# 
+# # make sure that we can bind by row
+# compare_df_cols(kid.data, adult.data, return="mismatch")
+# compare_df_cols_same(kid.data, adult.data)
+# 
+# combined.data <- dplyr::bind_rows(adult.data,kid.data)
+# 
+# View(combined.data)
+# 
+# write.csv(x = combined.data, file = "CLIF-Combined-Dataset.csv")
+```
+
+```{r import.data}
+# import deidentified dataset
+combined.data <- read.csv(file="CLIF-Combined-Dataset.csv")
+```
+
+```{r gather.data, echo=FALSE}
+# gather DVs separately
+exp1_jump <- combined.data %>%
+  select(ID, group, Version, contains("Jump")) %>%  # select Task 1 trials, ID, and Version
+  gather(orig, DV_Subj_Jump, contains("Jump")) %>% # split trials into rows
+  separate(orig, c("IV_Objective","Exp"), sep = "([\\_\\.])", extra = "drop") %>% # separate original name
+  mutate(DV_Subj_Jump = ifelse(Version %in% "A", 100 - as.numeric(DV_Subj_Jump),  as.numeric(DV_Subj_Jump)), IV_Objective = as.numeric(sub("X","", IV_Objective))) %>%  # find depth and adjust responses for counterbalancing across Versions
+  arrange(ID) # arrange by ID number
+
+exp1_fall <- combined.data %>%
+  select(ID, group, Version, contains("Fall")) %>%
+  gather(orig2, DV_Subj_Fall, contains("Fall")) %>% 
+  separate(orig2, c("IV_Objective","Exp"), sep = "([\\_\\.])", extra = "drop") %>% 
+  mutate(DV_Subj_Fall = ifelse(Version %in% "A", 100 - as.numeric(DV_Subj_Fall), as.numeric(DV_Subj_Fall)), IV_Objective = as.numeric(sub("X","", IV_Objective))) %>% 
+  arrange(ID) # arrange by ID number
+
+# find baseline values for jump
+baseline_jump <- exp1_jump %>%
+  select(ID, group, IV_Objective, DV_Subj_Jump) %>%
+  filter(IV_Objective == "4") %>% # filter by responses to medium cliff (baseline measure)
+  mutate(count = 7) %>% # produce baseline depth for all responses in A and B (even NAs)
+  uncount(count) %>%
+  rename(DV_Subj_Jump_Baseline = DV_Subj_Jump) %>% 
+  select(DV_Subj_Jump_Baseline)
+
+# find baseline values for fall
+baseline_fall <- exp1_fall %>%
+  select(ID, group, IV_Objective, DV_Subj_Fall) %>% 
+  filter(IV_Objective == "4") %>% 
+  mutate(count = 7) %>%
+  uncount(count) %>% 
+  rename(DV_Subj_Fall_Baseline = DV_Subj_Fall) %>% 
+  select(DV_Subj_Fall_Baseline)
+
+# compile final jump data
+exp1_jump <- cbind(exp1_jump, baseline_jump) %>% 
+  mutate(DV_Subj_Jump_Diff = DV_Subj_Jump - DV_Subj_Jump_Baseline) 
+
+# compile final fall data
+exp1_fall <- cbind(exp1_fall, baseline_fall) %>% 
+  mutate(DV_Subj_Fall_Diff = DV_Subj_Fall - DV_Subj_Fall_Baseline) 
+
+# compile combined dataset (including incomplete trials)
+exp1_full <- merge(exp1_fall, exp1_jump) 
+
+exp2 <- combined.data %>%
+  select(ID, group, Version, contains("Exp2.Test")) %>% # select Task 2 trials, ID, and Version
+  gather(orig, DV_Direction, contains("Exp2.Test")) %>% # split trials into rows
+  separate(orig, c("IV_Depth","Exp"), sep = "([\\_\\.])", extra = "drop") %>% # separate trial number
+  mutate(IV_Depth = as.numeric(sub("X","", IV_Depth)), IV_Obj_Depth_Diff = IV_Depth - 4, DV_Direction = ifelse(Version %in% "B", 100 - as.numeric(DV_Direction), as.numeric(DV_Direction)), new = IV_Obj_Depth_Diff^(1/3)) %>% # find depth, adjust for counterbalancing in Version B
+  arrange(ID) # arrange by ID number
+
+exp3 <- combined.data %>%
+  select(ID, group, Version, contains("Exp3.Test")) %>% # select Task 3 trials, ID, and Version
+  gather(orig, DV_Preference, contains("Exp3.Test")) %>% # split trials into rows
+  separate(orig, c("IV_Depth_Accept","Exp"), sep = "([\\_\\.])", extra = "drop") %>% # separate trial number
+  mutate(IV_Depth_Accept = as.numeric(sub("X","", IV_Depth_Accept)), DV_Preference = ifelse(Version %in% "A", 100 - as.numeric(DV_Preference), as.numeric(DV_Preference))) %>% # find depth, adjust for counterbalancing
+  arrange(ID) # arrange by ID number
+
+exp4 <- combined.data %>%
+  select(ID, group, Version, contains("Exp4.Test")) %>% # select Task 4 trials, ID, and Version
+  gather(orig, DV_Depth, contains("Exp4.Test")) %>% # split trials into rows
+  separate(orig, c("IV_Preference","Exp"), sep = "([\\_\\.])", extra = "drop") %>% # separate trial number
+  mutate(IV_Preference = as.numeric(sub("X","", IV_Preference)), DV_Depth = ifelse(Version %in% "A", 100 - as.numeric(DV_Depth), as.numeric(DV_Depth))) %>% # find preference, adjust for counterbalancing
+  arrange(ID) %>% # arrange by ID number
+  mutate(ID = as.factor(ID))
+```
+
+# Compare Task 1 in Adults and Kids
+
+```{r combined.task1}
+# combined task 1a, converges 
+model1.jump.combined.simple <- lmer(data = exp1_jump, formula = DV_Subj_Jump ~ IV_Objective * group + (1|ID))
+summary(model1.jump.combined.simple)
+plot(allEffects(model1.jump.combined.simple))
+
+# combined task 1b, converges 
+model1.fall.combined <- lmer(data = exp1_fall, formula = DV_Subj_Fall ~ IV_Objective * group + (1+IV_Objective|ID))
+summary(model1.fall.combined)
+plot(allEffects(model1.fall.combined))
+```
+
+# Compare Task 2 in Adults and Kids
+
+```{r combined.task2}
+# combined task 2, converges (singular error message)
+model2.combined <- lmer(data = exp2, formula = DV_Direction ~ IV_Obj_Depth_Diff * group + (1|ID))
+summary(model2.combined)
+plot(allEffects(model1.fall.combined))
+```
+
+# Compare Task 3 in Adults and Kids
+
+```{r combined.task3}
+# combined task 3, converges 
+model3.combined <- lmer(data = exp3, formula = DV_Preference ~ IV_Depth_Accept * group + (1|ID))
+summary(model3.combined)
+
+model3.combined.scaled <- lmer(data = exp3, formula = scale(DV_Preference) ~ scale(IV_Depth_Accept) * group + (1|ID))
+summary(model3.combined.scaled)
+
+plot(allEffects(model3.combined))
+```
+
+# Compare Task 4 in Adults and Kids
+
+```{r combined.task4}
+# combined task 4, converges 
+model4.combined <- lmer(data = exp4, formula = DV_Depth ~ IV_Preference * group + (1|ID))
+summary(model4.combined)
+plot(allEffects(model4.combined))
+```
