@@ -27,7 +27,6 @@ library(corrplot)
 
 knitr::opts_chunk$set(warning = FALSE, message = FALSE) 
 
-setwd("~/Desktop/Nensi/Thesis/Analysis Datasets")
 ```
 
 ```{r cleanup, echo=FALSE, eval=FALSE}

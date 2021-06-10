@@ -22,7 +22,6 @@ library(lmerTest)
 
 knitr::opts_chunk$set(warning = FALSE, message = FALSE) 
 
-setwd("~/Desktop/Nensi/Thesis/Analysis Datasets")
 ```
 
 ```{r combine.datasets, echo=FALSE, eval=FALSE}
