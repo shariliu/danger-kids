@@ -1,0 +1,55 @@
+﻿ID,Participant,Task Explanation,Exp2.CC1,Exp2.CC2,Exp2.CC3,1_Exp2.TestA.Test,2_Exp2.TestA.Test,3_Exp2.TestA.Test,4_Exp2.TestA.Test,5_Exp2.TestA.Test,6_Exp2.TestA.Test,7_Exp2.TestA.Test,1_Exp2.TestB.Test,2_Exp2.TestB.Test,3_Exp2.TestB.Test,4_Exp2.TestB.Test,5_Exp2.TestB.Test,6_Exp2.TestB.Test,7_Exp2.TestB.Test,Exp3.CC1,Exp3.CC2,Exp3.CC3,1_Exp3.TestA.Test,2_Exp3.TestA.Test,3_Exp3.TestA.Test,4_Exp3.TestA.Test,5_Exp3.TestA.Test,6_Exp3.TestA.Test,1_Exp3.TestB.Test,2_Exp3.TestB.Test,3_Exp3.TestB.Test,4_Exp3.TestB.Test,5_Exp3.TestB.Test,6_Exp3.TestB.Test,Exp4.CC3,Exp4.CC1,Exp4.CC2,1_Exp4.TestA.Test,2_Exp4.TestA.Test,3_Exp4.TestA.Test,4_Exp4.TestA.Test,5_Exp4.TestA.Test,6_Exp4.TestA.Test,7_Exp4.TestA.Test,1_Exp4.TestB.Test,2_Exp4.TestB.Test,3_Exp4.TestB.Test,4_Exp4.TestB.Test,5_Exp4.TestB.Test,6_Exp4.TestB.Test,7_Exp4.TestB.Test,Version,Age,Sex
+1,A1,"I have to figure out what things Wendi likes, by observing which cliffs she jumps over",30,100,49,0,33,36,51,58,61,50,,,,,,,,70,51,4,,,,,,,63,65,69,74,90,93,0,51,100,1,0,0,19,50,84,100,,,,,,,,1,21,Male
+2,A2,find out what Wendy likes,31,98,51,60,51,34,68,70,32,36,,,,,,,,73,51,0,,,,,,,74,51,51,67,51,86,10,49,100,38,63,33,16,77,51,28,,,,,,,,1,37,Male
+3,A3,Figure what cliffs wendi will jump over,32,100,50,,,,,,,,26,69,75,68,76,71,32,70,51,0,59,68,29,73,33,74,,,,,,,13,49,100,97,70,79,57,37,33,23,,,,,,,,1,20,Male
+4,A4,Find out what Wendi likes and jumps over,34,100,52,,,,,,,,27,83,75,52,38,36,88,75,52,4,,,,,,,73,52,78,77,82,74,17,52,100,,,,,,,,0,9,41,52,52,75,100,1,35,Female
+5,A5,determine what wendi likes and what cliffs she will jump over,31,100,50,12,8,12,13,87,82,89,,,,,,,,73,51,0,,,,,,,43,36,36,42,100,51,23,51,100,0,8,20,51,71,87,96,,,,,,,,1,35,Female
+6,A6,what wendy likes and will jump over,31,100,51,79,32,73,100,80,30,70,,,,,,,,76,51,0,70,65,79,72,80,90,,,,,,,21,51,100,,,,,,,,0,10,30,20,73,88,100,1,26,Male
+7,A7,figure out what cliffs Wendi will jump over,32,100,51,51,46,51,63,54,51,51,,,,,,,,72,51,4,,,,,,,33,39,37,55,61,55,10,51,93,2,11,12,35,68,82,85,,,,,,,,1,30,Female
+8,A8,figure out what wendi likes and what cliffs she will jump over,30,100,51,,,,,,,,100,83,50,50,23,25,25,71,50,0,59,71,69,80,72,71,,,,,,,16,51,100,,,,,,,,0,0,0,19,34,77,88,1,22,Male
+9,A9,To find out what objects Wendi likes more than others by assessing her cliff-jumping behavior,31,100,50,32,32,32,50,69,69,69,,,,,,,,71,50,0,,,,,,,69,72,71,71,72,71,7,50,100,0,4,3,20,66,81,100,,,,,,,,1,39,Male
+10,A10,figure out how much wendi likes things and which cliffs she will jump over,33,99,51,,,,,,,,100,93,70,51,33,20,18,72,51,0,68,73,72,74,73,68,,,,,,,8,51,100,,,,,,,,4,5,6,22,66,80,88,1,34,Female
+11,A11,I am suppose to learn what Wendi likes and how high of a cliff she will jump from.,31,100,51,,,,,,,,88,83,69,50,51,33,24,70,51,0,34,51,69,69,77,76,,,,,,,27,51,95,3,22,26,51,71,80,96,,,,,,,,1,34,Female
+12,A12,To figure out what Wendi likes and what cliffs she will jump over.,34,100,55,0,20,25,53,84,86,100,,,,,,,,77,52,4,,,,,,,73,38,78,50,53,53,0,42,100,0,15,18,8,79,90,100,,,,,,,,1,31,Female
+13,A13,Find out which cliffs they ike ,36,100,51,,,,,,,,73,72,72,51,32,31,30,71,51,7,64,72,70,66,69,70,,,,,,,16,51,91,,,,,,,,9,16,,51,62,83,93,1,36,Male
+14,A14,I will figure out what Wendi likes and what cliffs she will jump over.,32,100,50,32,51,51,51,50,51,49,,,,,,,,71,50,0,,,,,,,30,51,72,72,72,71,8,51,95,4,6,20,35,66,84,82,,,,,,,,1,34,Female
+15,A15,My job is to figure out what Wendi likes and what cliffs she will jump over.,31,100,51,0,0,0,49,68,100,100,,,,,,,,71,50,0,,,,,,,71,71,72,71,91,100,7,50,95,0,18,34,50,66,82,100,,,,,,,,1,24,Female
+16,A16,figure out what wendi likes and what cliffs she will jump,33,100,51,,,,,,,,86,69,85,51,30,29,28,70,51,0,61,67,73,64,75,73,,,,,,,9,51,100,,,,,,,,0,13,18,44,67,80,87,1,38,Male
+17,A17,Discover what cliffs Wendi likes to jump from,33,100,51,51,35,43,50,51,65,60,,,,,,,,71,51,0,61,60,56,58,71,64,,,,,,,22,50,100,,,,,,,,0,15,20,50,66,77,100,1,33,Male
+18,A18,figure out what things wendi likes most,32,100,51,31,29,50,50,67,69,68,,,,,,,,70,50,0,,,,,,,56,63,74,74,80,85,19,50,100,,,,,,,,7,0,39,50,69,86,96,1,42,Male
+19,A19,To figure out which objects Wendi will be willing to jump the cliff for,30,100,50,,,,,,,,100,100,85,68,0,0,0,73,51,0,71,87,100,100,82,62,,,,,,,0,51,100,,,,,,,,100,91,75,48,16,35,0,1,29,Male
+20,A20,To figure out what Wendi likes and what cliffs she will jump over,32,100,51,,,,,,,,100,100,100,,0,0,0,70,51,0,60,61,70,73,79,87,,,,,,,22,51,100,,,,,,,,0,0,0,5,,81,100,1,21,Male
+21,B1,To see what cliffs she'll jump over,30,100,51,,,,,,,,71,51,70,51,29,31,33,27,51,97,,,,,,,29,28,30,31,28,29,100,1,51,100,78,34,21,0,0,0,,,,,,,,2,28,Female
+22,B2,To find out what Wendi likes and help her jump cliffs to get it,0,100,50,0,0,0,50,100,100,100,,,,,,,,29,51,100,30,35,27,18,16,18,,,,,,,100,0,51,100,23,83,51,0,0,0,,,,,,,,2,59,Female
+23,B3,to decided where wendy should jump,70,98,49,0,15,7,71,52,84,100,,,,,,,,29,51,97,40,19,29,51,0,28,,,,,,,100,7,51,,,,,,,,51,77,29,51,73,84,100,2,23,Female
+24,B4,To discern what cliffs Wendi will jump to get what she likes. ,31,89,52,17,30,27,68,71,66,76,,,,,,,,30,53,92,40,24,29,15,25,29,,,,,,,95,48,53,,,,,,,,96,97,87,51,22,96,20,2,48,Male
+25,B5,To determine which cliffs wendi will jump to get the item she likes,32,100,51,,,,,,,,100,84,70,50,33,30,19,28,50,100,,,,,,,68,71,72,62,84,92,100,20,51,100,80,44,32,20,14,0,,,,,,,,2,37,Male
+26,B6,to figure out what she likes and what cliffs she is willing to jump,32,100,51,32,31,31,51,71,70,69,,,,,,,,30,51,100,36,30,30,25,20,21,,,,,,,100,6,51,,,,,,,,94,81,62,40,22,11,0,2,46,Female
+27,B7,to guess which things wendi likes and which cliffs she is willing to jump,30,100,51,0,0,0,100,100,100,100,,,,,,,,32,51,100,40,30,28,21,14,7,,,,,,,100,10,51,100,87,73,51,0,14,0,,,,,,,,2,45,Female
+28,B8,To provide my opinion really,0,0,57,0,0,0,100,100,100,100,,,,,,,,0,100,0,,,,,,,0,0,0,0,0,0,71,68,36,,,,,,,,57,69,70,38,85,47,64,2,23,Female
+29,B9,to figure out which cliffs she will jump over to get her favorite things,32,100,51,,,,,,,,93,89,93,51,51,4,11,30,51,100,29,30,35,42,27,51,,,,,,,100,4,51,97,99,40,23,6,12,0,,,,,,,,2,29,Female
+30,B10,To find out what Clifs Wendi would jump and what things Wendi likes.,33,100,52,,,,,,,,100,100,51,51,51,0,0,30,51,100,70,72,29,31,30,31,,,,,,,100,0,51,,,,,,,,52,51,37,21,22,6,7,2,26,Male
+31,B11,To find out when to jump and what she likes,32,100,50,3,2,1,50,90,99,99,,,,,,,,30,51,99,,,,,,,29,30,30,28,31,29,100,0,51,100,89,50,49,27,9,0,,,,,,,,2,27,Female
+32,B12,determine which cliff wendi will jump over,30,91,51,,,,,,,,72,68,62,51,31,31,33,26,50,91,55,66,51,41,37,40,,,,,,,100,0,51,,,,,,,,100,92,62,51,29,5,0,2,25,Male
+33,B13,Determine which things Wendi likes and which cliffs she jumps,31,96,51,23,29,32,55,67,78,84,,,,,,,,30,50,100,,,,,,,45,36,35,34,34,19,51,6,51,100,80,62,35,13,12,0,,,,,,,,2,32,Male
+34,B14,Guessing what Wendi wants to do,91,76,88,,,,,,,,60,71,81,70,61,63,64,68,35,39,59,67,69,49,70,72,,,,,,,75,68,60,66,79,72,77,80,81,69,,,,,,,,2,22,Male
+35,B15,To find out which things Wendy likes and which cliffs she will jump. ,31,100,51,32,32,51,50,70,69,70,,,,,,,,31,50,100,,,,,,,51,50,43,31,30,19,100,30,50,,,,,,,,90,73,73,50,32,23,0,2,31,Male
+36,B16,To help Wendi jump cliffs.,0,100,51,23,31,69,85,30,51,78,,,,,,,,30,51,100,,,,,,,10,9,8,9,8,10,95,7,51,0,35,36,51,67,65,100,,,,,,,,2,62,Female
+37,B17,To determine what Wendi wants to jump and what items she likes,33,90,51,,,,,,,,89,85,71,30,33,25,30,30,51,94,51,28,30,28,51,30,,,,,,,97,24,51,,,,,,,,36,22,8,7,6,6,8,2,49,Female
+38,D1,Find out which cliff she will jump and what thing she likes.,30,100,50,26,28,30,52,71,71,71,,,,,,,,28,51,0,,,,,,,51,50,50,32,31,0,100,0,51,,,,,,,,100,80,50,51,25,0,0,4,39,Male
+39,D2,Figure out what cliffs wendy will jump over and which objects she likes more than others ,0,100,50,2,17,13,51,85,81,91,,,,,,,,30,50,100,85,91,65,24,14,24,,,,,,,100,7,51,99,79,80,51,37,21,3,,,,,,,,4,29,Male
+40,D3,To figure out if Wendi will jump to get stuff she likes.,32,100,49,,,,,,,,100,86,69,50,32,14,3,30,50,100,,,,,,,38,33,35,17,16,9,100,25,50,,,,,,,,100,80,73,38,26,0,0,4,33,Male
+41,D4,to help wendi jump the cliffs,30,100,51,,,,,,,,75,79,24,51,75,29,77,29,51,91,,,,,,,82,71,51,5,38,6,94,20,50,99,4,64,48,25,5,0,,,,,,,,4,30,Male
+42,D5,To figure out which cliffs Wendy will jump to see which she likes best.,14,90,50,,,,,,,,91,69,69,51,38,50,31,30,50,91,10,25,30,19,40,51,,,,,,,95,22,51,95,80,68,52,20,21,6,,,,,,,,4,32,Female
+43,D6,choose which one Wendi will do,5,97,51,3,0,0,1,94,100,100,,,,,,,,29,51,100,0,0,0,0,6,9,,,,,,,100,0,51,,,,,,,,78,32,100,100,56,100,100,4,60,Female
+44,D7,"To figure out which things Wendy wants, and get her to them. ",32,100,50,0,32,32,51,70,79,100,,,,,,,,30,50,100,81,72,50,21,30,0,,,,,,,100,0,51,100,80,60,51,20,19,0,,,,,,,,4,23,Male
+45,D8,decide which cliff wendi wants to jump ,22,100,52,0,0,0,51,100,100,100,,,,,,,,29,50,100,30,100,71,99,71,84,,,,,,,100,0,51,,,,,,,,91,70,39,50,43,43,35,4,34,Female
+46,D9,find out what wendi likes and what cliffs she will jump over,31,90,51,,,,,,,,100,100,88,30,0,12,0,29,51,93,,,,,,,50,44,31,13,0,0,94,6,50,94,80,35,6,7,7,7,,,,,,,,4,37,Male
+47,D10,My job is to figure out what things Wendi likes and what cliffs she will jump for them..,32,100,51,4,10,14,51,85,90,90,,,,,,,,30,51,92,,,,,,,21,24,20,,1,0,100,4,51,,,,,,,,100,88,63,51,20,1,0,4,28,Female
+48,D11,Find what wendi likes,30,100,50,,,,,,,,84,93,85,49,18,20,11,27,50,98,72,75,38,28,15,2,,,,,,,100,16,,100,90,53,44,13,21,0,,,,,,,,4,20,Male
+49,D12,my job is to decid3e white items wendi likes and which cliffs she's willing to jump over.,0,100,51,0,0,0,51,100,95,100,,,,,,,,71,51,100,,,,,,,1,29,5,28,72,79,100,0,51,100,100,61,51,20,14,0,,,,,,,,4,21,Male
+50,D13,To find out what Wendi likes and which cliffs she will jump over,32,91,51,13,14,15,51,86,92,88,,,,,,,,31,50,92,57,36,35,25,10,9,,,,,,,95,21,51,,,,,,,,100,92,66,47,18,5,0,4,41,Male
+51,D14,decide which cliffs wendi will jump to get to things she likes,32,100,50,,,,,,,,100,100,100,51,0,0,0,29,49,99,,,,,,,50,43,29,31,18,13,100,20,51,100,84,51,34,17,0,0,,,,,,,,4,32,Female
+52,D15,To find the object wendi wants,31,100,50,11,32,30,51,80,86,90,,,,,,,,30,48,100,34,51,0,2,0,0,,,,,,,100,35,51,,,,,,,,100,78,38,49,20,4,35,4,31,Female
+53,D16,figure out which cliff she likes to jump,6,100,51,,,,,,,,81,79,76,15,34,34,31,35,51,100,,,,,,,38,35,14,49,51,51,63,25,51,100,82,69,51,39,61,35,,,,,,,,4,27,Male
+54,D17,"To figure out which things Wendi likes, and which cliffs she will jump over to get to those things.",32,100,51,0,24,31,51,75,77,82,,,,,,,,30,50,100,62,41,29,30,23,18,,,,,,,100,21,51,,,,,,,,100,65,36,21,21,0,0,4,25,Male

@@ -1,0 +1,212 @@
+---
+title: "CLIF Adult Data Followup"
+author: "Nensi Gjata and Shari Liu"
+date: "4/6/2021"
+output:
+  html_document: default
+  pdf_document: default
+editor_options:
+  chunk_output_type: console
+---
+
+# Load, Import, and Organize Data
+
+```{r load, message=FALSE}
+library(tidyverse)
+library(dplyr)
+library(lme4)
+library(lmerTest)
+library(reghelper)
+library(ggplot2)
+library(cowplot)
+library(boot)
+library(simr)
+library(MuMIn)
+library(gmodels)
+library(corrplot)
+
+knitr::opts_chunk$set(warning = FALSE, message = FALSE) 
+
+setwd("~/Desktop/")
+```
+
+```{r cleanup, echo=FALSE, eval=FALSE}
+raw_data <- read.csv(file="CLIF_Adult_Followup_Raw.csv")
+
+clean <- raw_data %>%
+  slice(-1:-2)  %>% # delete first and second rows with question information
+  subset(WorkerID != "") %>% # delete all non-MTURK responses
+  mutate(Duration = as.numeric(as.character(Duration..in.seconds.)), CC6 = as.character(CC6), AC=as.character(AC)) %>% # convert exclusion measures to characters or numbers
+  filter(grepl("cliff|object|like|dislike|jump|want|action|judge|deep|shallow|rate|small|big|answer|figure", CC6)) %>% # filter out participants who did not include at least 1 keyword in their responses
+  mutate(AC_check = mapply(adist, "Wendi's favorite gelato flavor is sea salt caramel", AC)) %>%  # create column for mistakes in attention check
+  filter(Duration >= 120, AC_check <= 5) %>%  # factor out participants who spent less than four minutes, greater than five mistakes in attention check
+  mutate(ID = row_number()) %>% # deidentify participants
+  select(ID, everything())
+
+write.csv(clean, "CLIF_Adult_Followup.csv") # export deidentified dataset
+```
+
+```{r import.data}
+# import deidentified dataset
+data <- read.csv(file="CLIF_Adult_Followup_Final.csv") %>% 
+  mutate(ID=as.factor(ID))
+
+order <- c(`1` = "Task 3 First", `2` = "Task 4 First")
+```
+
+
+
+
+
+
+
+
+
+
+# Task 3
+
+## Task 3: Tidy Data
+```{r exp3, echo=FALSE}
+exp3 <- data %>%
+  select(ID, Version, contains("Exp3.Test"), Order_Exps) %>% # select Task 3 trials, ID, and Version
+  gather(orig, DV_Preference, contains("Exp3.Test")) %>% # split trials into rows
+  separate(orig, c("IV_Depth_Accept","Exp"), sep = "([\\_\\.])", extra = "drop") %>% # separate trial number
+  mutate(IV_Depth_Accept = as.numeric(sub("X","", IV_Depth_Accept)), DV_Preference = ifelse(Version %in% "A", 100 - as.numeric(DV_Preference), as.numeric(DV_Preference))) %>% # find depth, adjust for counterbalancing
+  arrange(ID) # arrange by ID number
+```
+
+## Task 3: Plots
+```{r exp3.plot, echo=FALSE, eval=FALSE}
+(exp3.plot.adult <- exp3 %>% 
+  ggplot(aes(x = IV_Depth_Accept, y = DV_Preference)) +
+  facet_wrap(~as.factor(Order_Exps), labeller = as_labeller(order)) +
+  scale_x_continuous(breaks=seq(1,5,1)) +
+  geom_line(aes(group=ID), color=rgb(0,0,0), alpha=0.1, size=.8) +
+  geom_boxplot(aes(group=IV_Depth_Accept), color="#333333", width=.4, fill=NA, size=1) +
+  geom_point(color="#5F8DAE", size=3) +
+  stat_summary(fun.data="mean_cl_boot", geom="errorbar", color="#003e67", width=0.15, size=1.5) +
+  stat_summary(fun="mean", geom="point", shape=23, size=4, fill="white", color="#003e67", stroke=2) +
+  theme_bw() +
+  theme(axis.text=element_text(size=23)) +
+  labs(x = "", y = ""))
+
+ggsave(filename="task3.adult.plot.png", path="/Users/Nensi/Desktop", width = 30, height = 21, units = "cm", dpi=300)
+```
+
+```{r exp3.plot.indv, echo=FALSE, eval=FALSE}
+(exp3.plot.indv.adult <- exp3 %>% 
+  ggplot(aes(x = IV_Depth_Accept, y = DV_Preference)) +
+  scale_x_continuous(breaks=seq(1,5,1)) +
+  facet_wrap(vars(ID), ncol = 6) +
+  geom_line(aes(group=ID), color=rgb(0,0,0), alpha=0.2, size=1.5) +
+  geom_point(color="#5F8DAE", size=3) +
+  theme_bw() +
+  theme(axis.text=element_text(size=13)) +
+  ylim(0, 100) +
+  labs(x = "", y = ""))
+
+ggsave(filename="task3.adult.indv.png", path="/Users/Nensi/Desktop", width = 36, height = 30, units = "cm", dpi=300)
+```
+
+## Task 3: Main Analysis
+```{r exp3.analysis}
+# null model (converges, no error message)
+null3.adult <- lmer(data = exp3, formula = DV_Preference ~ 1 + (1+IV_Depth_Accept|ID))
+
+# hypothesis-driven model (converges, no error message)
+model3.adult <- lmer(data = exp3, formula = DV_Preference ~ IV_Depth_Accept + (1+IV_Depth_Accept|ID))
+
+# hypothesis-driven standardized (converges, no error message)
+model3.standard.adult <- lmer(data = exp3, formula = scale(DV_Preference) ~ scale(IV_Depth_Accept) + (1+scale(IV_Depth_Accept)|ID))
+
+# task 3 summaries
+confint(model3.adult)
+summary(model3.adult)
+summary(model3.standard.adult)
+
+# likelihood ratio test for comparing models
+anova(null3.adult, model3.adult) 
+
+# r-squared For generalized mixed-effect models
+r.squaredGLMM(null3.adult)
+r.squaredGLMM(model3.adult) # adding predictors adds 7.06% variance explained 
+```
+
+
+
+# Task 4
+
+## Task 4: Tidy Data
+```{r exp4, echo=FALSE}
+exp4 <- data %>%
+  select(ID, Version, contains("Exp4.Test"), Order_Exps) %>% # select Task 4 trials, ID, and Version
+  gather(orig, DV_Depth, contains("Exp4.Test")) %>% # split trials into rows
+  separate(orig, c("IV_Preference","Exp"), sep = "([\\_\\.])", extra = "drop") %>% # separate trial number
+  mutate(IV_Preference = as.numeric(sub("X","", IV_Preference)), DV_Depth = ifelse(Version %in% "A", 100 - as.numeric(DV_Depth), as.numeric(DV_Depth))) %>% # find preference, adjust for counterbalancing
+  arrange(ID) # arrange by ID number
+
+```
+
+## Task 4: Plots
+```{r exp4.plot, echo=FALSE, eval=FALSE}
+(exp4.plot.adult <- exp4 %>% 
+  ggplot(aes(x = IV_Preference, y = DV_Depth)) +
+  facet_wrap(~as.factor(Order_Exps), labeller = as_labeller(order)) +
+  scale_x_continuous(breaks=seq(1,7,1)) +
+  geom_line(aes(group=ID), color=rgb(0,0,0), alpha=0.1, size=.8) +
+  geom_boxplot(aes(group=IV_Preference), color="#333333", width=.5, fill=NA, size=1) +
+  geom_point(color="#5F8DAE", size=3) +
+  stat_summary(fun.data="mean_cl_boot", geom="errorbar", color="#003e67", width=0.15, size=1.5) +
+  stat_summary(fun="mean", geom="point", shape=23, size=4, fill="white", color="#003e67", stroke=2) +
+  theme_bw() +
+  theme(axis.text=element_text(size=23)) +
+  labs(x = "", y = ""))
+
+ggsave(filename="task4.adult.plot.png", path="/Users/Nensi/Desktop", width = 30, height = 20, units = "cm", dpi=300)
+```
+
+```{r exp4.plot.indv, echo=FALSE, eval=FALSE}
+(exp4.plot.indv.adult <- exp4 %>% 
+  ggplot(aes(x = IV_Preference, y = DV_Depth)) +
+  scale_x_continuous(breaks=seq(1,7,1)) +
+  facet_wrap(vars(ID), ncol = 6) +
+  geom_line(aes(group=ID), color=rgb(0,0,0), alpha=0.2, size=1.5) +
+  geom_point(color="#5F8DAE", size=3) +
+  theme_bw() +
+  theme(axis.text=element_text(size=13)) +
+  ylim(0, 100) +
+  labs(x = "", y = ""))
+
+ggsave(filename="task4.adult.indv.png", path="/Users/Nensi/Desktop", width = 36, height = 30, units = "cm", dpi=300)
+
+```
+
+## Task 4: Main Analysis
+```{r exp4.analysis}
+#null model (failed to converge)
+#null4.adult <- lmer(data = exp4, formula = DV_Depth ~ 1 + (1+IV_Preference|ID))
+
+#null model simplified (converges, singular error message)
+null4.simple.adult <- lmer(data = exp4, formula = DV_Depth ~ 1 + (1|ID))
+
+# hypothesis-driven model (converges, no error message)
+model4.adult <- lmer(data = exp4, formula = DV_Depth ~ IV_Preference + (1+IV_Preference|ID))
+
+# hypothesis-driven model, simplified (converges, no error message)
+model4.simple.adult <- lmer(data = exp4, formula = DV_Depth ~ IV_Preference + (1|ID))
+
+# hypothesis-driven model simplified, standardized
+model4.standard.adult <- lmer(data = exp4, formula = scale(DV_Depth) ~ scale(IV_Preference) + (1|ID))
+
+# task 4 summaries
+confint(model4.simple.adult)
+summary(model4.simple.adult)
+summary(model4.standard.adult)
+
+# likelihood ratio test for comparing models
+anova(null4.simple.adult, model4.simple.adult) 
+
+# r-squared For generalized mixed-effect models
+r.squaredGLMM(null4.simple.adult)
+r.squaredGLMM(model4.simple.adult) # adding predictors adds 50.35% variance explained 
+```
